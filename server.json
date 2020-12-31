@@ -3,10 +3,20 @@
     {
       "Name": "wushunqing",
       "Port": 8001,
-      "Cipher": "aes-256-crt",
-      "Password": "65dsf45ds4",
-      "ExpiredDateTime": "2021-01-20 00:00:00"
+      "Cipher": "AEAD_AES_256_GCM",
+      "Password": "274455411",
+      "ExpiredDateTime": "2021-01-01 23:00:00",
+      "MaxConnections": 2
+    },
+    {
+      "Name": "wushunqing2",
+      "Port": 8002,
+      "Cipher": "AEAD_AES_256_GCM",
+      "Password": "274455411",
+      "ExpiredDateTime": "2021-01-01 23:00:00",
+      "MaxConnections": 2
     }
   ],
-  "UDP": false
+  "UDP": false,
+  "MaxConnectionsLimitTimeOut": 180
 }

@@ -9,7 +9,7 @@ import (
 
 var logger = log.New(os.Stderr, "", log.Lshortfile|log.LstdFlags)
 
-func logf(f string, v ...interface{}) {
+func Logf(f string, v ...interface{}) {
 	if config.Common.Verbose {
 		logger.Output(2, fmt.Sprintf(f, v...))
 	}
@@ -27,6 +27,6 @@ func (l *logHelper) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func newLogHelper(prefix string) *logHelper {
+func NewLogHelper(prefix string) *logHelper {
 	return &logHelper{prefix}
 }

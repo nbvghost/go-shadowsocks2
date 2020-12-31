@@ -1,8 +1,11 @@
 package ssnet
 
 import (
+	"github.com/shadowsocks/go-shadowsocks2/config"
+	"github.com/shadowsocks/go-shadowsocks2/log"
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/shadowsocks/go-shadowsocks2/socks"
@@ -10,7 +13,7 @@ import (
 
 // Create a SOCKS server listening on addr and proxy to server.
 func socksLocal(addr, server string, shadow func(net.Conn) net.Conn) {
-	logf("SOCKS proxy %s <-> %s", addr, server)
+	log.Logf("SOCKS proxy %s <-> %s", addr, server)
 	tcpLocal(addr, server, shadow, func(c net.Conn) (socks.Addr, error) { return socks.Handshake(c) })
 }
 
@@ -18,10 +21,10 @@ func socksLocal(addr, server string, shadow func(net.Conn) net.Conn) {
 func tcpTun(addr, server, target string, shadow func(net.Conn) net.Conn) {
 	tgt := socks.ParseAddr(target)
 	if tgt == nil {
-		logf("invalid target address %q", target)
+		log.Logf("invalid target address %q", target)
 		return
 	}
-	logf("TCP tunnel %s <-> %s <-> %s", addr, server, target)
+	log.Logf("TCP tunnel %s <-> %s <-> %s", addr, server, target)
 	tcpLocal(addr, server, shadow, func(net.Conn) (socks.Addr, error) { return tgt, nil })
 }
 
@@ -29,14 +32,14 @@ func tcpTun(addr, server, target string, shadow func(net.Conn) net.Conn) {
 func tcpLocal(addr, server string, shadow func(net.Conn) net.Conn, getAddr func(net.Conn) (socks.Addr, error)) {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
-		logf("failed to listen on %s: %v", addr, err)
+		log.Logf("failed to listen on %s: %v", addr, err)
 		return
 	}
 
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			logf("failed to accept: %s", err)
+			log.Logf("failed to accept: %s", err)
 			continue
 		}
 
@@ -55,18 +58,18 @@ func tcpLocal(addr, server string, shadow func(net.Conn) net.Conn, getAddr func(
 						if err, ok := err.(net.Error); ok && err.Timeout() {
 							continue
 						}
-						logf("UDP Associate End.")
+						log.Logf("UDP Associate End.")
 						return
 					}
 				}
 
-				logf("failed to get target address: %v", err)
+				log.Logf("failed to get target address: %v", err)
 				return
 			}
 
 			rc, err := net.Dial("tcp", server)
 			if err != nil {
-				logf("failed to connect to server %v: %v", server, err)
+				log.Logf("failed to connect to server %v: %v", server, err)
 				return
 			}
 			defer rc.Close()
@@ -74,64 +77,80 @@ func tcpLocal(addr, server string, shadow func(net.Conn) net.Conn, getAddr func(
 			rc = shadow(rc)
 
 			if _, err = rc.Write(tgt); err != nil {
-				logf("failed to send target address: %v", err)
+				log.Logf("failed to send target address: %v", err)
 				return
 			}
 
-			logf("proxy %s <-> %s <-> %s", c.RemoteAddr(), server, tgt)
+			log.Logf("proxy %s <-> %s <-> %s", c.RemoteAddr(), server, tgt)
 			_, _, err = relay(rc, c)
 			if err != nil {
 				if err, ok := err.(net.Error); ok && err.Timeout() {
 					return // ignore i/o timeout
 				}
-				logf("relay error: %v", err)
+				log.Logf("relay error: %v", err)
 			}
 		}()
 	}
 }
 
 // Listen on addr for incoming connections.
-func TcpRemote(addr string, shadow func(net.Conn) net.Conn) {
-	l, err := net.Listen("tcp", addr)
+func TcpRemote(serverInfo *config.ServerInfo, shadow func(net.Conn) net.Conn) {
+	l, err := net.Listen("tcp", serverInfo.GetAddress())
 	if err != nil {
-		logf("failed to listen on %s: %v", addr, err)
+		log.Logf("failed to listen on %s: %v", serverInfo.GetAddress(), err)
 		return
 	}
 
-	logf("listening TCP on %s", addr)
+	log.Logf("listening TCP on %s", serverInfo.GetAddress())
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			logf("failed to accept: %v", err)
+			log.Logf("failed to accept: %v", err)
 			continue
 		}
 
 		go func() {
 			defer c.Close()
+			orgC := c
 			c.(*net.TCPConn).SetKeepAlive(true)
 			c = shadow(c)
 
 			tgt, err := socks.ReadAddr(c)
 			if err != nil {
-				logf("failed to get target address: %v", err)
+				log.Logf("failed to get target address: %v", err)
+				orgC.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type:text/html\r\nContent-Length:11\r\n\r\ntoken无效"))
+				return
+			}
+
+			expired := serverInfo.GetExpiredDateTime()
+			if time.Now().After(expired) {
+				log.Logf("服务已经过期")
+				c.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type:text/html\r\nContent-Length:18\r\n\r\n服务已经过期"))
+				return
+			}
+
+			canConnect := serverInfo.CheckMaxConnections(strings.Split(c.RemoteAddr().String(), ":")[0])
+			if canConnect == false {
+				log.Logf("超出最大连接数")
+				c.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type:text/html\r\nContent-Length:21\r\n\r\n超出最大连接数"))
 				return
 			}
 
 			rc, err := net.Dial("tcp", tgt.String())
 			if err != nil {
-				logf("failed to connect to target: %v", err)
+				log.Logf("failed to connect to target: %v", err)
 				return
 			}
 			defer rc.Close()
 			rc.(*net.TCPConn).SetKeepAlive(true)
 
-			logf("proxy %s <-> %s", c.RemoteAddr(), tgt)
+			log.Logf("proxy %s <-> %s", c.RemoteAddr(), tgt)
 			_, _, err = relay(c, rc)
 			if err != nil {
 				if err, ok := err.(net.Error); ok && err.Timeout() {
 					return // ignore i/o timeout
 				}
-				logf("relay error: %v", err)
+				log.Logf("relay error: %v", err)
 			}
 		}()
 	}

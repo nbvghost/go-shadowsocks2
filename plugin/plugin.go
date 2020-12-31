@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"github.com/shadowsocks/go-shadowsocks2/log"
 	"net"
 	"os"
 	"os/exec"
@@ -13,7 +14,7 @@ import (
 var pluginCmd *exec.Cmd
 
 func StartPlugin(plugin, pluginOpts, ssAddr string, isServer bool) (newAddr string, err error) {
-	logf("starting plugin (%s) with option (%s)....", plugin, pluginOpts)
+	log.Logf("starting plugin (%s) with option (%s)....", plugin, pluginOpts)
 	freePort, err := getFreePort()
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch an unused port for plugin (%v)", err)
@@ -28,9 +29,9 @@ func StartPlugin(plugin, pluginOpts, ssAddr string, isServer bool) (newAddr stri
 		if ssHost == "" {
 			ssHost = "0.0.0.0"
 		}
-		logf("plugin (%s) will listen on %s:%s", plugin, ssHost, ssPort)
+		log.Logf("plugin (%s) will listen on %s:%s", plugin, ssHost, ssPort)
 	} else {
-		logf("plugin (%s) will listen on %s:%s", plugin, localHost, freePort)
+		log.Logf("plugin (%s) will listen on %s:%s", plugin, localHost, freePort)
 	}
 	err = execPlugin(plugin, pluginOpts, ssHost, ssPort, localHost, freePort)
 	return
@@ -65,7 +66,7 @@ func execPlugin(plugin, pluginOpts, remoteHost, remotePort, localHost, localPort
 			return err
 		}
 	}
-	logH := newLogHelper("[" + plugin + "]: ")
+	logH := log.NewLogHelper("[" + plugin + "]: ")
 	env := append(os.Environ(),
 		"SS_REMOTE_HOST="+remoteHost,
 		"SS_REMOTE_PORT="+remotePort,
@@ -85,10 +86,10 @@ func execPlugin(plugin, pluginOpts, remoteHost, remotePort, localHost, localPort
 	pluginCmd = cmd
 	go func() {
 		if err := cmd.Wait(); err != nil {
-			logf("plugin exited (%v)\n", err)
+			log.Logf("plugin exited (%v)\n", err)
 			os.Exit(2)
 		}
-		logf("plugin exited\n")
+		log.Logf("plugin exited\n")
 		os.Exit(0)
 	}()
 	return nil

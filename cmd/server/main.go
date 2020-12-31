@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -80,30 +81,43 @@ func main() {
 
 	for i := range config.Server.Servers {
 		server := config.Server.Servers[i]
-		startServer(&server)
+		startServer(server)
 	}
+
+	go func() {
+
+		for {
+			newServer := config.ReadNewServerConfig()
+			if newServer != nil {
+				log.Println("添加新的服务信息")
+				startServer(newServer)
+			}
+			time.Sleep(time.Second * 3)
+		}
+
+	}()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	<-sigCh
 	plugin.KillPlugin()
 }
-func startServer(serverInfo *config.ServerInfo)  {
+func startServer(serverInfo *config.ServerInfo) {
 	//addr := flags.Server
 	//cipher := flags.Cipher
 	//password := flags.Password
 	var err error
 
-	addr := fmt.Sprintf("0.0.0.0:%v", serverInfo.Port)
-	udpAddr := addr
+	//addr := fmt.Sprintf("0.0.0.0:%v", serverInfo.Port)
+	//udpAddr := addr
 	password := serverInfo.Password
 	cipher := serverInfo.Cipher
 
 	if config.Common.Plugin != "" {
-		addr, err = plugin.StartPlugin(config.Common.Plugin, config.Common.PluginOpts, addr, true)
+		/*addr, err = plugin.StartPlugin(config.Common.Plugin, config.Common.PluginOpts, serverInfo.GetAddress(), true)
 		if err != nil {
 			log.Fatal(err)
-		}
+		}*/
 	}
 
 	ciph, err := core.PickCipher(cipher, password)
@@ -112,9 +126,9 @@ func startServer(serverInfo *config.ServerInfo)  {
 	}
 
 	if config.Server.UDP {
-		go ssnet.UdpRemote(udpAddr, ciph.PacketConn)
+		go ssnet.UdpRemote(serverInfo, ciph.PacketConn)
 	}
-	go ssnet.TcpRemote(addr, ciph.StreamConn)
+	go ssnet.TcpRemote(serverInfo, ciph.StreamConn)
 }
 func parseURL(s string) (addr, cipher, password string, err error) {
 	u, err := url.Parse(s)
