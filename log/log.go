@@ -1,7 +1,8 @@
-package main
+package log
 
 import (
 	"fmt"
+	"github.com/shadowsocks/go-shadowsocks2/config"
 	"log"
 	"os"
 )
@@ -9,7 +10,7 @@ import (
 var logger = log.New(os.Stderr, "", log.Lshortfile|log.LstdFlags)
 
 func logf(f string, v ...interface{}) {
-	if config.Verbose {
+	if config.Common.Verbose {
 		logger.Output(2, fmt.Sprintf(f, v...))
 	}
 }
@@ -19,7 +20,7 @@ type logHelper struct {
 }
 
 func (l *logHelper) Write(p []byte) (n int, err error) {
-	if config.Verbose {
+	if config.Common.Verbose {
 		logger.Printf("%s%s\n", l.prefix, p)
 		return len(p), nil
 	}

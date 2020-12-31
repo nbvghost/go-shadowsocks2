@@ -1,4 +1,4 @@
-package main
+package ssnet
 
 import (
 	"net"

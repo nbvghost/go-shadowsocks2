@@ -1,4 +1,4 @@
-package main
+package plugin
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 
 var pluginCmd *exec.Cmd
 
-func startPlugin(plugin, pluginOpts, ssAddr string, isServer bool) (newAddr string, err error) {
+func StartPlugin(plugin, pluginOpts, ssAddr string, isServer bool) (newAddr string, err error) {
 	logf("starting plugin (%s) with option (%s)....", plugin, pluginOpts)
 	freePort, err := getFreePort()
 	if err != nil {
@@ -36,7 +36,7 @@ func startPlugin(plugin, pluginOpts, ssAddr string, isServer bool) (newAddr stri
 	return
 }
 
-func killPlugin() {
+func KillPlugin() {
 	if pluginCmd != nil {
 		pluginCmd.Process.Signal(syscall.SIGTERM)
 		waitCh := make(chan struct{})

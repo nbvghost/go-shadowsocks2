@@ -1,0 +1,12 @@
+{
+  "Servers": [
+    {
+      "Name": "wushunqing",
+      "Port": 8001,
+      "Cipher": "aes-256-crt",
+      "Password": "65dsf45ds4",
+      "ExpiredDateTime": "2021-01-20 00:00:00"
+    }
+  ],
+  "UDP": false
+}

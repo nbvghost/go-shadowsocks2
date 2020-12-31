@@ -53,7 +53,7 @@ func ListCipher() []string {
 }
 
 // PickCipher returns a Cipher of the given name. Derive key from password if given key is empty.
-func PickCipher(name string, key []byte, password string) (Cipher, error) {
+func PickCipher(name string, password string) (Cipher, error) {
 	name = strings.ToUpper(name)
 
 	switch name {
@@ -68,12 +68,7 @@ func PickCipher(name string, key []byte, password string) (Cipher, error) {
 	}
 
 	if choice, ok := aeadList[name]; ok {
-		if len(key) == 0 {
-			key = kdf(password, choice.KeySize)
-		}
-		if len(key) != choice.KeySize {
-			return nil, shadowaead.KeySizeError(choice.KeySize)
-		}
+		key := kdf(password, choice.KeySize)
 		aead, err := choice.New(key)
 		return &aeadCipher{aead}, err
 	}

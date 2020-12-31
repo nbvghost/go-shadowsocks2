@@ -18,7 +18,10 @@ import (
 	"github.com/shadowsocks/go-shadowsocks2/socks"
 )
 
-
+var config struct {
+	Verbose    bool
+	UDPTimeout time.Duration
+}
 
 func main() {
 

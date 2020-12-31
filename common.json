@@ -1,0 +1,6 @@
+{
+  "Verbose": true,
+  "UDPTimeout": "5m",
+  "Plugin": "",
+  "PluginOpts": ""
+}
